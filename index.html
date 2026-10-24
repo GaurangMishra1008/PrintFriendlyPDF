@@ -1,0 +1,590 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Print-Friendly PDF Maker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a print-shop workbench. Files and settings on the left, a before/after proof sheet on the right. */
+:root{
+  --paper:#f6f7f5; --sheet:#ffffff; --ink:#15191c; --muted:#5d666c; --rule:#d9dedc;
+  --cyan:#0a6f8f; --cyan-soft:#e2f0f4; --good:#2f7a3d; --warn:#9a5b00; --bad:#b3261e;
+  --shadow:0 1px 2px rgba(20,30,35,.06),0 6px 24px rgba(20,30,35,.07);
+  --f-display:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#111517; --sheet:#1a1f22; --ink:#e8ecea; --muted:#9aa4a8; --rule:#2c3438;
+  --cyan:#5cc0dd; --cyan-soft:#16313a; --good:#7cc98a; --warn:#e3a94b; --bad:#f08a80;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 24px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#111517; --sheet:#1a1f22; --ink:#e8ecea; --muted:#9aa4a8; --rule:#2c3438;
+  --cyan:#5cc0dd; --cyan-soft:#16313a; --good:#7cc98a; --warn:#e3a94b; --bad:#f08a80;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 24px rgba(0,0,0,.25); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,4vw,36px);line-height:1.1;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 .reg{display:inline-block;width:.62em;height:.62em;border-radius:50%;border:2px solid var(--cyan);position:relative;margin-left:.2em;vertical-align:.08em}
+h1 .reg::before,h1 .reg::after{content:"";position:absolute;background:var(--cyan)}
+h1 .reg::before{left:50%;top:-30%;bottom:-30%;width:2px;transform:translateX(-50%)}
+h1 .reg::after{top:50%;left:-30%;right:-30%;height:2px;transform:translateY(-50%)}
+.lede{color:var(--muted);margin:6px 0 0;max-width:62ch}
+.private{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.private svg{flex:none}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.label{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+.drop{border:1.5px dashed var(--rule);border-radius:8px;padding:18px 14px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:6px;align-items:center}
+.drop:hover,.drop.over{border-color:var(--cyan);background:var(--cyan-soft)}
+.drop:focus-within{outline:2px solid var(--cyan);outline-offset:2px}
+.drop strong{font-weight:600}
+.drop span{font-size:13px;color:var(--muted)}
+.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.file{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 10px;border:1px solid var(--rule);border-radius:7px;cursor:pointer;background:transparent;text-align:left;font:inherit;color:inherit;width:100%}
+.file[aria-current="true"]{border-color:var(--cyan);box-shadow:inset 3px 0 0 var(--cyan)}
+.file .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file .meta{grid-column:1/-1;font-size:12px;color:var(--muted);font-family:var(--f-mono);display:flex;gap:10px;flex-wrap:wrap}
+.chip{font-family:var(--f-mono);font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--rule);color:var(--muted);align-self:center;white-space:nowrap}
+.chip.done{color:var(--good);border-color:currentColor}
+.chip.work{color:var(--cyan);border-color:currentColor}
+.chip.err{color:var(--bad);border-color:currentColor}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:8px 4px;text-align:center;cursor:pointer;font-size:13px;font-weight:500;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:1px}
+.seg label:last-of-type{border-right:0}
+.seg label small{font-weight:400;font-size:11px;color:var(--muted)}
+.seg input:checked+label{background:var(--ink);color:var(--sheet)}
+.seg input:checked+label small{color:inherit;opacity:.75}
+.seg input:focus-visible+label{outline:2px solid var(--cyan);outline-offset:-3px}
+.ctl{display:flex;flex-direction:column;gap:4px}
+.ctl .row{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.ctl .row output{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.ctl .hint{font-size:12px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--cyan)}
+select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--rule);background:var(--sheet);color:var(--ink)}
+.btn{font:inherit;font-weight:600;padding:10px 14px;border-radius:8px;border:1px solid var(--ink);background:var(--ink);color:var(--sheet);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.file:focus-visible,select:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.actions{display:flex;flex-direction:column;gap:8px}
+.progress{height:6px;border-radius:99px;background:var(--rule);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--cyan);transition:width .2s}
+.status{font-size:13px;color:var(--muted);min-height:1.5em}
+.status.err{color:var(--bad)}
+.proof{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.proofbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.proofbar .title{font-family:var(--f-display);font-weight:500;font-size:18px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pager{display:flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:13px}
+.pager button{font:inherit;width:32px;height:32px;border-radius:6px;border:1px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer}
+.pager button:disabled{opacity:.4;cursor:default}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.pair{grid-template-columns:1fr}}
+figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cv{background:#fff;border:1px solid var(--rule);border-radius:4px;box-shadow:var(--shadow);overflow:hidden;position:relative;line-height:0}
+.cv canvas{width:100%;height:auto;display:block}
+.cv.busy::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.35)}
+.meter{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.meter .bar{height:8px;border-radius:2px;background:var(--rule);overflow:hidden}
+.meter .bar i{display:block;height:100%;background:var(--ink)}
+.meter b{font-weight:500;color:var(--ink);min-width:3.5em;text-align:right}
+.saving{font-family:var(--f-display);font-size:15px;padding:10px 12px;border-radius:8px;background:var(--cyan-soft);display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.saving strong{font-size:22px;color:var(--cyan);font-variant-numeric:tabular-nums}
+.saving span{color:var(--muted);font-family:var(--f-body);font-size:13px}
+.note{font-size:13px;color:var(--muted);margin:0;max-width:70ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Print-Friendly PDF Maker<span class="reg" aria-hidden="true"></span></h1>
+      <p class="lede">Turns dark, colorful slide PDFs into white pages with dark text, so they cost far less ink to print.</p>
+    </div>
+    <p class="private"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Your files never leave this browser.</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-label="Files and settings">
+      <p class="label">1 · Add PDFs</p>
+      <label class="drop" id="drop">
+        <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple>
+        <strong>Choose PDFs or drop them here</strong>
+        <span>Several at once is fine. Large decks (30 MB+) work too.</span>
+      </label>
+      <ul class="files" id="fileList"></ul>
+
+      <p class="label">2 · Choose a look</p>
+      <div class="seg" role="radiogroup" aria-label="Print mode">
+        <input type="radio" name="mode" id="mColor" value="color" checked><label for="mColor">Color<small>light tints</small></label>
+        <input type="radio" name="mode" id="mGray" value="gray"><label for="mGray">Grayscale<small>B&amp;W printer</small></label>
+        <input type="radio" name="mode" id="mBlack" value="black"><label for="mBlack">Black only<small>least ink</small></label>
+      </div>
+
+      <div class="ctl">
+        <div class="row"><label for="sClean">Background removal</label><output id="oClean"></output></div>
+        <input type="range" id="sClean" min="4" max="40" value="16">
+        <span class="hint">Higher clears more shading and glow. Too high can thin out faint text.</span>
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="sDark">Text darkness</label><output id="oDark"></output></div>
+        <input type="range" id="sDark" min="0" max="100" value="70">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="sFade">Fade colored pictures</label><output id="oFade"></output></div>
+        <input type="range" id="sFade" min="0" max="100" value="45">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="quality">Output sharpness</label></div>
+        <select id="quality">
+          <option value="1600">Standard (smaller file)</option>
+          <option value="2200" selected>High (recommended)</option>
+          <option value="3000">Very high (large file)</option>
+        </select>
+      </div>
+
+      <p class="label">3 · Save</p>
+      <div class="actions">
+        <button class="btn" id="btnOne" disabled>Convert &amp; save this PDF</button>
+        <button class="btn ghost" id="btnAll" disabled>Convert all as one ZIP</button>
+        <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="proof" aria-label="Preview">
+      <div class="proofbar">
+        <div class="title" id="pvTitle">Example slide</div>
+        <div class="pager">
+          <button id="prev" aria-label="Previous page" disabled>‹</button>
+          <span id="pageNo">1 / 1</span>
+          <button id="next" aria-label="Next page" disabled>›</button>
+        </div>
+      </div>
+      <div class="pair">
+        <figure>
+          <figcaption><span class="label">Original</span></figcaption>
+          <div class="cv" id="cvIn"><canvas id="before" width="1200" height="675" aria-label="Original page"></canvas></div>
+          <div class="meter"><span>ink</span><span class="bar"><i id="mIn"></i></span><b id="vIn">–</b></div>
+        </figure>
+        <figure>
+          <figcaption><span class="label">Print-friendly</span></figcaption>
+          <div class="cv" id="cvOut"><canvas id="after" width="1200" height="675" aria-label="Cleaned page"></canvas></div>
+          <div class="meter"><span>ink</span><span class="bar"><i id="mOut"></i></span><b id="vOut">–</b></div>
+        </figure>
+      </div>
+      <div class="saving" id="saving"><strong id="saveNum">–</strong> less ink on this page <span id="saveNote">Ink is the share of the page covered, the way printers estimate toner use.</span></div>
+      <p class="note">Slide PDFs like these are pictures of slides, so the saved file is pictures too. Text prints sharp, but you can't select or search it. If a page loses faint text, lower <em>Background removal</em>.</p>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+"use strict";
+/* ---------- the cleaning algorithm (also runs inside a Web Worker) ---------- */
+function cleanPage(src, w, h, o) {
+  // src: RGBA bytes. o: {mode, clean (0..1), dark (0..1), fade (0..1)}
+  const out = new Uint8ClampedArray(src.length);
+  const B = Math.max(8, Math.round(Math.max(w, h) / 72));
+  const gw = Math.ceil(w / B), gh = Math.ceil(h / B), G = gw * gh;
+  const U = new Float32Array(G), R = new Float32Array(G), Gc = new Float32Array(G), Bc = new Float32Array(G);
+  const cnt = new Uint32Array(512), sr = new Float64Array(512), sg = new Float64Array(512), sb = new Float64Array(512);
+  // 1. background colour of each block = its most common colour
+  for (let by = 0; by < gh; by++) for (let bx = 0; bx < gw; bx++) {
+    let tot = 0;
+    cnt.fill(0); sr.fill(0); sg.fill(0); sb.fill(0);
+    const y1 = Math.min(h, (by + 1) * B), x1 = Math.min(w, (bx + 1) * B);
+    for (let y = by * B; y < y1; y += 2) for (let x = bx * B; x < x1; x += 2) {
+      const i = (y * w + x) * 4, r = src[i], g = src[i + 1], b = src[i + 2];
+      const k = ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5);
+      tot++; cnt[k]++; sr[k] += r; sg[k] += g; sb[k] += b;
+    }
+    let best = 0;
+    for (let k = 1; k < 512; k++) if (cnt[k] > cnt[best]) best = k;
+    const n = cnt[best] || 1, j = by * gw + bx;
+    U[j] = n / (tot || 1);
+    R[j] = sr[best] / n / 255; Gc[j] = sg[best] / n / 255; Bc[j] = sb[best] / n / 255;
+  }
+  // Is the page mostly light or mostly dark? Blocks that agree get more say below.
+  const ys = new Float32Array(G);
+  for (let j = 0; j < G; j++) ys[j] = 0.299 * R[j] + 0.587 * Gc[j] + 0.114 * Bc[j];
+  const pageLight = ys.slice().sort()[G >> 1] >= 0.5;
+  const W = new Float32Array(G);
+  for (let j = 0; j < G; j++) W[j] = (0.25 + U[j]) * ((ys[j] >= 0.5) === pageLight ? 1 : 0.45);
+  // 2. smooth with a weighted 5x5 vector median so blocks full of text get their real background
+  const SR = new Float32Array(G), SG = new Float32Array(G), SB = new Float32Array(G);
+  const nb = [];
+  for (let by = 0; by < gh; by++) for (let bx = 0; bx < gw; bx++) {
+    nb.length = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const yy = by + dy, xx = bx + dx;
+      if (yy >= 0 && yy < gh && xx >= 0 && xx < gw) nb.push(yy * gw + xx);
+    }
+    let bi = nb[0], bd = Infinity;
+    for (const a of nb) {
+      let d = 0;
+      for (const c of nb) { const dr = R[a] - R[c], dg = Gc[a] - Gc[c], db = Bc[a] - Bc[c]; d += W[c] * Math.sqrt(dr * dr + dg * dg + db * db); }
+      d /= W[a];
+      if (d < bd) { bd = d; bi = a; }
+    }
+    const j = by * gw + bx; SR[j] = R[bi]; SG[j] = Gc[bi]; SB[j] = Bc[bi];
+  }
+  // 3. per block, the set of nearby background colours a pixel may belong to
+  const MAXC = 9, CR = new Float32Array(G * MAXC), CG = new Float32Array(G * MAXC), CB = new Float32Array(G * MAXC), CY = new Float32Array(G * MAXC), CN = new Uint8Array(G);
+  for (let by = 0; by < gh; by++) for (let bx = 0; bx < gw; bx++) {
+    const j = by * gw + bx; let n = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const yy = by + dy, xx = bx + dx;
+      if (yy < 0 || yy >= gh || xx < 0 || xx >= gw) continue;
+      const s = yy * gw + xx, r = SR[s], g = SG[s], b = SB[s];
+      let dup = false;
+      for (let m = 0; m < n; m++) { const q = j * MAXC + m, dr = CR[q] - r, dg = CG[q] - g, db = CB[q] - b; if (dr * dr + dg * dg + db * db < 0.0016) { dup = true; break; } }
+      if (dup) continue;
+      const q = j * MAXC + n++; CR[q] = r; CG[q] = g; CB[q] = b; CY[q] = 0.299 * r + 0.587 * g + 0.114 * b;
+    }
+    CN[j] = n;
+  }
+  // 4. pixels close to a background become white; contrast becomes ink
+  const lo = o.clean, hi = lo + 0.42 - 0.12 * o.dark;
+  const target = 0.5 - 0.46 * o.dark;  // max lightness of ink
+  const fade = o.fade, mode = o.mode;
+  let inkIn = 0, inkOut = 0, samples = 0;
+  let lighter = false, yb = 1;
+  // contrast of a pixel against the background colours around block j (the closest one wins)
+  const contrast = (j, pr, pg, pb, yp, chp) => {
+    let c = Infinity;
+    for (let m = 0, q = j * MAXC; m < CN[j]; m++, q++) {
+      const dyy = yp - CY[q], darkBg = CY[q] < 0.5;
+      // Ink means moving away from the paper: lighter on a dark background, darker on a light one.
+      const away = darkBg ? dyy > 0 : dyy < 0;
+      const lc = !away ? 0 : dyy > 0 ? dyy / (1.05 - CY[q]) : -dyy / (CY[q] + 0.05);
+      const dr = pr - CR[q], dg = pg - CG[q], db = pb - CB[q];
+      let cd = Math.sqrt((dr * dr + dg * dg + db * db) / 3) * 0.6;
+      if (!away) cd *= chp;
+      const cc = lc > cd ? lc : cd;
+      if (cc < c) { c = cc; lighter = dyy > 0; yb = CY[q]; }
+    }
+    return c;
+  };
+  for (let y = 0; y < h; y++) {
+    let fy = (y + 0.5) / B - 0.5; if (fy < 0) fy = 0; if (fy > gh - 1) fy = gh - 1;
+    const by0 = fy | 0, by1 = Math.min(gh - 1, by0 + 1), ty = fy - by0;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      let fx = (x + 0.5) / B - 0.5; if (fx < 0) fx = 0; if (fx > gw - 1) fx = gw - 1;
+      const bx0 = fx | 0, bx1 = Math.min(gw - 1, bx0 + 1), tx = fx - bx0;
+      const pr = src[i] / 255, pg = src[i + 1] / 255, pb = src[i + 2] / 255;
+      const yp = 0.299 * pr + 0.587 * pg + 0.114 * pb;
+      const chp = Math.min(1, 3 * (Math.max(pr, pg, pb) - Math.min(pr, pg, pb)));
+      // blend the four surrounding blocks so there are no hard block edges
+      const c11 = contrast(by1 * gw + bx1, pr, pg, pb, yp, chp), l11 = lighter, y11 = yb;
+      const c10 = contrast(by1 * gw + bx0, pr, pg, pb, yp, chp), l10 = lighter, y10 = yb;
+      const c01 = contrast(by0 * gw + bx1, pr, pg, pb, yp, chp), l01 = lighter, y01 = yb;
+      const c00 = contrast(by0 * gw + bx0, pr, pg, pb, yp, chp);
+      const c = (c00 * (1 - tx) + c01 * tx) * (1 - ty) + (c10 * (1 - tx) + c11 * tx) * ty;
+      if (ty >= 0.5) { if (tx >= 0.5) { lighter = l11; yb = y11; } else { lighter = l10; yb = y10; } }
+      else if (tx >= 0.5) { lighter = l01; yb = y01; }
+      let a = (c - lo) / (hi - lo);
+      a = a <= 0 ? 0 : a >= 1 ? 1 : a * a * (3 - 2 * a);
+      let r = 1, g = 1, b = 1;
+      if (a > 0) {
+        let qr = pr, qg = pg, qb = pb, yq = yp;
+        if (lighter && yb < 0.55) {  // light ink on a dark background: flip its lightness, keep its hue
+          const s = 1 - 2 * yp; qr = pr + s; qg = pg + s; qb = pb + s;
+          qr = qr < 0 ? 0 : qr > 1 ? 1 : qr; qg = qg < 0 ? 0 : qg > 1 ? 1 : qg; qb = qb < 0 ? 0 : qb > 1 ? 1 : qb;
+          yq = 0.299 * qr + 0.587 * qg + 0.114 * qb;
+        }
+        if (yq > target && yq > 0.001) { const k = target / yq; qr *= k; qg *= k; qb *= k; yq = target; }
+        const mx = Math.max(pr, pg, pb), mn = Math.min(pr, pg, pb);
+        a *= 1 - fade * 0.85 * (mx - mn);
+        if (mode === "color") { r = 1 - a * (1 - qr); g = 1 - a * (1 - qg); b = 1 - a * (1 - qb); }
+        else {
+          let v = 1 - a * (1 - yq);
+          if (mode === "black") v = v < 0.62 ? 0 : 1;
+          r = g = b = v;
+        }
+      }
+      out[i] = r * 255 + 0.5; out[i + 1] = g * 255 + 0.5; out[i + 2] = b * 255 + 0.5; out[i + 3] = 255;
+      if ((x & 3) === 0 && (y & 3) === 0) { samples++; inkIn += 1 - yp; inkOut += 1 - (0.299 * r + 0.587 * g + 0.114 * b); }
+    }
+  }
+  return { out, inkIn: inkIn / samples, inkOut: inkOut / samples };
+}
+
+/* ---------- worker plumbing (falls back to the main thread) ---------- */
+let worker = null, jobId = 0; const pending = new Map();
+try {
+  const code = cleanPage.toString() + "\nonmessage=e=>{const d=e.data;const r=cleanPage(new Uint8ClampedArray(d.buf),d.w,d.h,d.o);postMessage({id:d.id,buf:r.out.buffer,inkIn:r.inkIn,inkOut:r.inkOut},[r.out.buffer]);};";
+  worker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+  worker.onmessage = e => { const p = pending.get(e.data.id); pending.delete(e.data.id); p && p(e.data); };
+  worker.onerror = () => { worker = null; for (const [, p] of pending) p(null); pending.clear(); };
+} catch (e) { worker = null; }
+
+async function runClean(imgData, o) {
+  const { width: w, height: h } = imgData;
+  if (worker) {
+    const id = ++jobId, buf = imgData.data.slice().buffer;
+    const r = await new Promise(res => { pending.set(id, res); worker.postMessage({ id, buf, w, h, o }, [buf]); });
+    if (r) return { out: new ImageData(new Uint8ClampedArray(r.buf), w, h), inkIn: r.inkIn, inkOut: r.inkOut };
+  }
+  await new Promise(r => setTimeout(r, 0));
+  const r = cleanPage(imgData.data, w, h, o);
+  return { out: new ImageData(r.out, w, h), inkIn: r.inkIn, inkOut: r.inkOut };
+}
+
+/* ---------- state + UI ---------- */
+const $ = id => document.getElementById(id);
+const state = { files: [], cur: -1, page: 1, srcData: null, previewTok: 0 };
+const pdfjs = window.pdfjsLib;
+if (pdfjs) pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+function opts() {
+  return {
+    mode: document.querySelector('input[name="mode"]:checked').value,
+    clean: +$("sClean").value / 100,
+    dark: +$("sDark").value / 100,
+    fade: +$("sFade").value / 100,
+  };
+}
+function setOutputs() {
+  $("oClean").textContent = $("sClean").value;
+  $("oDark").textContent = $("sDark").value + "%";
+  $("oFade").textContent = $("sFade").value + "%";
+}
+function pct(x) { return (x * 100).toFixed(x < 0.1 ? 1 : 0) + "%"; }
+function mb(n) { return (n / 1048576).toFixed(1) + " MB"; }
+function setStatus(t, err) { $("status").textContent = t; $("status").classList.toggle("err", !!err); }
+function setBar(f) { $("bar").style.width = Math.round(f * 100) + "%"; }
+
+function drawSample() {
+  // An example dark slide, so the preview shows something before a PDF is added.
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 675;
+  const x = c.getContext("2d");
+  const g = x.createLinearGradient(0, 0, 1200, 675); g.addColorStop(0, "#071a2e"); g.addColorStop(1, "#0b2a45");
+  x.fillStyle = g; x.fillRect(0, 0, 1200, 675);
+  const panel = (px, py, pw, ph, col) => { x.fillStyle = "#0f3556"; x.strokeStyle = col; x.lineWidth = 2; x.beginPath(); x.roundRect(px, py, pw, ph, 14); x.fill(); x.stroke(); };
+  panel(40, 30, 1120, 90, "#36c5f0");
+  x.fillStyle = "#ffffff"; x.font = "700 40px Arial"; x.textAlign = "center"; x.fillText("Software Development Life Cycle", 600, 90);
+  const cols = [["#36c5f0", "Waterfall", ["Linear, step by step", "Each phase ends", "before the next", "Easy to manage"]],
+                ["#f5b83d", "Spiral", ["Risk-driven model", "Repeated loops", "Prototype each turn", "Large projects"]],
+                ["#7be08a", "Agile", ["Short sprints", "Working software", "Customer feedback", "Changes welcome"]]];
+  cols.forEach(([col, t, items], k) => {
+    const px = 40 + k * 380; panel(px, 150, 360, 380, col);
+    x.fillStyle = col; x.font = "700 32px Arial"; x.fillText(t, px + 180, 196);
+    x.fillRect(px + 130, 210, 100, 3);
+    x.textAlign = "left"; x.fillStyle = "#e9f2f8"; x.font = "24px Arial";
+    items.forEach((s, n) => { x.fillStyle = col; x.beginPath(); x.arc(px + 32, 252 + n * 60, 7, 0, 7); x.fill(); x.fillStyle = "#e9f2f8"; x.fillText(s, px + 52, 260 + n * 60); });
+    x.textAlign = "center";
+    x.strokeStyle = col; x.lineWidth = 6; x.globalAlpha = .35; x.beginPath(); x.arc(px + 300, 470, 34, 0, 7); x.stroke(); x.globalAlpha = 1;
+  });
+  const rg = x.createRadialGradient(600, 600, 10, 600, 600, 260); rg.addColorStop(0, "rgba(54,197,240,.45)"); rg.addColorStop(1, "rgba(54,197,240,0)");
+  x.fillStyle = rg; x.fillRect(300, 540, 600, 135);
+  x.fillStyle = "#bfe9f7"; x.font = "italic 22px Arial"; x.fillText("Pick the model that fits the project's risk and size", 600, 610);
+  return x.getImageData(0, 0, 1200, 675);
+}
+
+async function loadPdfFile(f) {
+  const buf = await f.arrayBuffer();
+  return pdfjs.getDocument({ data: buf, isEvalSupported: false }).promise;
+}
+
+async function renderPage(doc, n, longEdge) {
+  const page = await doc.getPage(n);
+  const v1 = page.getViewport({ scale: 1 });
+  const scale = Math.min(longEdge / Math.max(v1.width, v1.height), 4);
+  const vp = page.getViewport({ scale });
+  const c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  const data = ctx.getImageData(0, 0, c.width, c.height);
+  page.cleanup();
+  return { data, wPt: v1.width, hPt: v1.height };
+}
+
+function paint(canvasId, img) {
+  const c = $(canvasId); c.width = img.width; c.height = img.height; c.getContext("2d").putImageData(img, 0, 0);
+}
+
+let previewTimer = 0;
+function schedulePreview(delay = 120) { clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, delay); }
+async function updatePreview() {
+  if (!state.srcData) return;
+  const tok = ++state.previewTok;
+  $("cvOut").classList.add("busy");
+  const r = await runClean(state.srcData, opts());
+  if (tok !== state.previewTok) return;
+  $("cvOut").classList.remove("busy");
+  paint("after", r.out);
+  $("mIn").style.width = Math.min(100, r.inkIn * 100) + "%"; $("vIn").textContent = pct(r.inkIn);
+  $("mOut").style.width = Math.min(100, r.inkOut * 100) + "%"; $("vOut").textContent = pct(r.inkOut);
+  const save = r.inkIn > 0 ? Math.max(0, 1 - r.inkOut / r.inkIn) : 0;
+  $("saveNum").textContent = Math.round(save * 100) + "%";
+}
+
+async function showPage() {
+  const f = state.files[state.cur];
+  $("prev").disabled = !f || state.page <= 1;
+  $("next").disabled = !f || state.page >= (f ? f.pages : 1);
+  if (!f) return;
+  $("pageNo").textContent = state.page + " / " + f.pages;
+  $("pvTitle").textContent = f.name;
+  $("cvIn").classList.add("busy");
+  try {
+    const tok = ++state.previewTok;
+    const r = await renderPage(f.doc, state.page, 1200);
+    if (tok !== state.previewTok) return;
+    state.srcData = r.data;
+    paint("before", r.data);
+    $("cvIn").classList.remove("busy");
+    updatePreview();
+  } catch (e) { $("cvIn").classList.remove("busy"); setStatus("Couldn't show this page: " + e.message, true); }
+}
+
+function renderList() {
+  const ul = $("fileList"); ul.innerHTML = "";
+  state.files.forEach((f, i) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button"); b.className = "file"; b.type = "button";
+    b.setAttribute("aria-current", i === state.cur ? "true" : "false");
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = f.name; nm.title = f.name;
+    const chip = document.createElement("span"); chip.className = "chip " + (f.chipClass || "");
+    chip.textContent = f.chip || "ready";
+    const meta = document.createElement("span"); meta.className = "meta";
+    meta.textContent = [f.pages ? f.pages + " pages" : "", mb(f.file.size), f.outSize ? "→ " + mb(f.outSize) : ""].filter(Boolean).join("  ·  ");
+    b.append(nm, chip, meta);
+    b.onclick = () => { if (!f.doc) return; state.cur = i; state.page = 1; renderList(); showPage(); };
+    li.append(b); ul.append(li);
+  });
+  $("btnOne").disabled = busy || state.cur < 0;
+  $("btnAll").disabled = busy || !state.files.some(f => f.doc);
+  $("btnAll").hidden = state.files.length < 2;
+}
+
+async function addFiles(list) {
+  if (!pdfjs) { setStatus("The PDF reader didn't load. Check your connection and reload the page.", true); return; }
+  const arr = [...list].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
+  if (!arr.length) { setStatus("Those weren't PDF files. Choose files ending in .pdf.", true); return; }
+  for (const file of arr) {
+    const f = { file, name: file.name, chip: "reading…", chipClass: "work" };
+    state.files.push(f); renderList();
+    try {
+      f.doc = await loadPdfFile(file); f.pages = f.doc.numPages; f.chip = "ready"; f.chipClass = "";
+      if (state.cur < 0) { state.cur = state.files.indexOf(f); state.page = 1; showPage(); }
+    } catch (e) { f.chip = "can't open"; f.chipClass = "err"; setStatus(file.name + " couldn't be opened. It may be damaged or password-protected.", true); }
+    renderList();
+  }
+  if (!busy) setStatus(state.files.length === 1 ? "Check the preview, then save." : state.files.length + " files added. Click one to preview it.");
+}
+
+let busy = false;
+async function convert(f, o, longEdge, onPage) {
+  const out = await PDFLib.PDFDocument.create();
+  out.setTitle(f.name.replace(/\.pdf$/i, "") + " (print-friendly)");
+  out.setProducer("Print-Friendly PDF Maker");
+  const c = document.createElement("canvas"), ctx = c.getContext("2d");
+  let inIn = 0, inOut = 0;
+  for (let n = 1; n <= f.pages; n++) {
+    const r = await renderPage(f.doc, n, longEdge);
+    const cl = await runClean(r.data, o);
+    inIn += cl.inkIn; inOut += cl.inkOut;
+    c.width = cl.out.width; c.height = cl.out.height; ctx.putImageData(cl.out, 0, 0);
+    const blob = await new Promise(res => c.toBlob(res, "image/jpeg", o.mode === "black" ? 0.9 : 0.82));
+    const jpg = await out.embedJpg(await blob.arrayBuffer());
+    const p = out.addPage([r.wPt, r.hPt]);
+    p.drawImage(jpg, { x: 0, y: 0, width: r.wPt, height: r.hPt });
+    onPage(n);
+  }
+  const bytes = await out.save();
+  return { blob: new Blob([bytes], { type: "application/pdf" }), saving: inIn > 0 ? 1 - inOut / inIn : 0 };
+}
+
+function outName(name, o) {
+  const tag = o.mode === "color" ? "print" : o.mode === "gray" ? "print-gray" : "print-black";
+  return name.replace(/\.pdf$/i, "") + " (" + tag + ").pdf";
+}
+
+let dl = null;
+async function offer(filename, blob) {
+  if (dl) {
+    try { await dl.save({ filename, data: blob }); return "saved"; }
+    catch (e) {
+      if (e && e.code === "declined") return "declined";
+      if (e && e.code === "rate_limited") return "busy";
+      if (e && e.code !== "unavailable" && e.code !== "not_granted") throw e;
+    }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  return "saved";
+}
+
+async function doConvert(all) {
+  if (busy) return;
+  const targets = all ? state.files.filter(f => f.doc) : [state.files[state.cur]].filter(Boolean);
+  if (!targets.length) return;
+  busy = true; renderList();
+  const o = opts(), longEdge = +$("quality").value;
+  const total = targets.reduce((s, f) => s + f.pages, 0); let done = 0;
+  const zip = all ? new JSZip() : null;
+  let lastBlob = null, lastName = "", savings = [];
+  try {
+    for (const f of targets) {
+      f.chip = "0/" + f.pages; f.chipClass = "work"; renderList();
+      const r = await convert(f, o, longEdge, n => {
+        done++; setBar(done / total); f.chip = n + "/" + f.pages; renderList();
+        setStatus("Converting " + f.name + ", page " + n + " of " + f.pages + "…");
+      });
+      f.outSize = r.blob.size; f.chip = "done"; f.chipClass = "done"; savings.push(r.saving); renderList();
+      lastBlob = r.blob; lastName = outName(f.name, o);
+      if (zip) zip.file(lastName, r.blob);
+    }
+    let blob = lastBlob, name = lastName;
+    if (zip) { setStatus("Packing the ZIP…"); blob = await zip.generateAsync({ type: "blob", compression: "STORE" }); name = "Print-friendly PDFs (" + targets.length + ").zip"; }
+    const avg = savings.reduce((a, b) => a + b, 0) / savings.length;
+    setStatus("Done: " + mb(blob.size) + ", about " + Math.round(avg * 100) + "% less ink. Waiting for you to confirm the save…");
+    const res = await offer(name, blob);
+    setStatus(res === "saved" ? "Saved " + name + " (" + mb(blob.size) + "), about " + Math.round(avg * 100) + "% less ink."
+      : res === "declined" ? "Save cancelled. Click the button again to save it." : "Another save is still open. Finish it, then try again.", res !== "saved");
+  } catch (e) {
+    setStatus("Something went wrong: " + (e && e.message || e) + ". Try a lower sharpness setting.", true);
+    for (const f of targets) if (f.chipClass === "work") { f.chip = "failed"; f.chipClass = "err"; }
+  }
+  busy = false; renderList();
+}
+
+/* ---------- wiring ---------- */
+$("fileInput").addEventListener("change", e => { addFiles(e.target.files); e.target.value = ""; });
+const drop = $("drop");
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+["sClean", "sDark", "sFade"].forEach(id => $(id).addEventListener("input", () => { setOutputs(); schedulePreview(); }));
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => schedulePreview(0)));
+$("prev").onclick = () => { state.page--; showPage(); };
+$("next").onclick = () => { state.page++; showPage(); };
+$("btnOne").onclick = () => doConvert(false);
+$("btnAll").onclick = () => doConvert(true);
+
+setOutputs();
+state.srcData = drawSample();
+paint("before", state.srcData);
+updatePreview();
+renderList();
+setStatus("Showing an example slide. Add your PDFs to begin.");
+if (window.claude && window.claude.use) window.claude.use("downloads").then(d => { dl = d; }).catch(() => {});
+</script>
+
+</body></html>
